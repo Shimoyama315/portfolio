@@ -60,7 +60,7 @@
   list.addEventListener("scroll", () => {
     recenter();
     if (!isPC() || !mouse) return;
-    const hit = document.elementFromPoint(...mouse)?.closest(".item");
+    const hit = document.elementFromPoint(...mouse)?.closest(".card")?.parentElement;
     setActive(hit && list.contains(hit) ? hit : null);
   });
 
@@ -72,7 +72,28 @@
     card.addEventListener("focus", () => isPC() && setActive(it));
     card.addEventListener("click", (e) => e.preventDefault()); // 作品ページは未定
   });
-  list.addEventListener("mouseleave", () => setActive(null));
+  items.forEach((it) => {
+    const card = it.querySelector(".card");
+    card.addEventListener("mouseleave", () => it.classList.remove("is-active"));
+    card.addEventListener("blur", () => it.classList.remove("is-active"));
+  });
+
+  // PCだけ、3秒ごとにカード1枚分、右から左へ流す
+  // カーソルがカードに乗っている間と、ホイールで動かした直後は止める
+  const AUTO_MS = 3000;
+  let lastUser = 0;
+  list.addEventListener("wheel", () => { lastUser = Date.now(); }, { passive: true });
+  setInterval(() => {
+    if (!isPC() || !n || document.hidden) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (list.querySelector(".is-active")) return;
+    if (Date.now() - lastUser < AUTO_MS) return;
+    const step = items[n + 1].offsetLeft - items[n].offsetLeft;
+    // なめらかに動いている途中で巻き戻しが起きないよう、先に位置を戻しておく
+    const w = setWidth();
+    if (list.scrollLeft + step > w * 1.4) list.scrollLeft -= w;
+    list.scrollBy({ left: step, behavior: "smooth" });
+  }, AUTO_MS);
 
   // スマホでは常に情報を出す
   const applyMode = () => {
