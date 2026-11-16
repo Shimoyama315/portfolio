@@ -102,6 +102,60 @@ body {
   .item.is-active .info { opacity: 1; }
 }
 
+/* ---------- 作品ページ ---------- */
+.detail {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+}
+.detail[hidden] { display: none; }
+.detail-info .text { white-space: pre-wrap; }
+
+.detail-img {
+  display: block;
+  width: 100%;
+  object-fit: contain;
+}
+
+.detail-close {
+  position: fixed;
+  right: 16px;
+  bottom: 14px;
+  font: inherit;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.detail-close:focus { outline: none; }
+.detail-close:focus-visible { outline: 1px solid var(--fg); outline-offset: 3px; }
+
+body.is-detail-open { overflow: hidden; }
+
+@media (min-width: 768px) {
+  /* Figma 12:19：左に画像 1101×778、右に情報 394px。余白は左81 / 間73 / 右79 */
+  .detail { display: flex; align-items: center; }
+
+  .detail-inner {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1101px) 394px;
+    justify-content: center;
+    column-gap: 73px;
+    padding: 0 79px 0 81px;
+    align-items: start;
+  }
+
+  .detail-img {
+    aspect-ratio: 1101 / 778;
+    max-height: calc(100vh - 160px);
+  }
+
+  /* 情報の書き出しは画像の上端より 57px 下 */
+  .detail-info { padding-top: 57px; }
+}
+
 /* ---------- スマホ：縦一列 ---------- */
 @media (max-width: 767px) {
   body { font-size: 9px; }
@@ -125,4 +179,11 @@ body {
   .card { aspect-ratio: 1; order: -1; }
 
   .contact { right: 13px; bottom: 11px; }
+
+  /* Figma 12:28：上に画像 360×254、24px あけて 8px の情報 */
+  .detail { overflow-y: auto; }
+  .detail-inner { padding: 38px 17px 60px; }
+  .detail-img { aspect-ratio: 360 / 254; }
+  .detail-info { margin-top: 24px; font-size: 8px; }
+  .detail-close { right: 13px; bottom: 11px; }
 }

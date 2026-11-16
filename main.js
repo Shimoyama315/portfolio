@@ -4,12 +4,13 @@
   const COPIES = 3; // PCでは同じ並びを3つつなげて、端のない横スクロールにする
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const workId = (i) => "work-" + String(i + 1).padStart(2, "0");
 
-  const itemHTML = (w, hidden) => {
+  const itemHTML = (w, i, hidden) => {
     const lines = [w.date, "", w.title, w.size, w.medium, "", w.memo];
-    // 空の項目は行ごと詰めるが、区切りの空行は残す
+    // 空の項目は行ごと詰める。日付のあとの空行は日付があるときだけ残す
     const info = lines
-      .filter((l, i) => l !== "" || (i === 1 && w.date) || i === 5)
+      .filter((l, j) => l !== "" || (j === 1 && w.date) || j === 5)
       .map((l) => `<p>${esc(l)}</p>`)
       .join("");
     const media = w.image
@@ -17,17 +18,19 @@
       : `<span class="ph" role="img" aria-label="${esc(w.title)}"></span>`;
     return `<li class="item"${hidden ? ' aria-hidden="true"' : ""}>
       <div class="info">${info}</div>
-      <a class="card" href="#"${hidden ? ' tabindex="-1"' : ""}>${media}</a>
+      <a class="card" href="#${workId(i)}" data-index="${i}"${hidden ? ' tabindex="-1"' : ""}>${media}</a>
     </li>`;
   };
 
   let html = "";
-  for (let c = 0; c < COPIES; c++) html += works.map((w) => itemHTML(w, c !== 1)).join("");
+  for (let c = 0; c < COPIES; c++) html += works.map((w, i) => itemHTML(w, i, c !== 1)).join("");
   list.innerHTML = html;
 
   const items = [...list.children];
   const n = works.length;
   const isPC = () => matchMedia("(min-width: 768px)").matches;
+
+  /* ---------- 横スクロール（PC） ---------- */
 
   // 1セット分の幅（真ん中のセットの先頭から最後のセットの先頭まで）
   const setWidth = () => items[n * 2].offsetLeft - items[n].offsetLeft;
@@ -54,37 +57,34 @@
     }
   }, { passive: false });
 
-  // スクロール後は、カーソルの下にあるカードを大きくし直す
-  let mouse = null;
-  addEventListener("mousemove", (e) => { mouse = [e.clientX, e.clientY]; });
-  list.addEventListener("scroll", () => {
-    recenter();
-    if (!isPC() || !mouse) return;
-    const hit = document.elementFromPoint(...mouse)?.closest(".card")?.parentElement;
-    setActive(hit && list.contains(hit) ? hit : null);
-  });
-
   // カーソルを乗せたカードを大きくする
   const setActive = (el) => items.forEach((it) => it.classList.toggle("is-active", it === el));
   items.forEach((it) => {
     const card = it.querySelector(".card");
     card.addEventListener("mouseenter", () => isPC() && setActive(it));
-    card.addEventListener("focus", () => isPC() && setActive(it));
-    card.addEventListener("click", (e) => e.preventDefault()); // 作品ページは未定
-  });
-  items.forEach((it) => {
-    const card = it.querySelector(".card");
+    // キーボードで選んだときだけ大きくする（作品ページを閉じて戻ったときは大きくしない）
+    card.addEventListener("focus", () => isPC() && card.matches(":focus-visible") && setActive(it));
     card.addEventListener("mouseleave", () => it.classList.remove("is-active"));
     card.addEventListener("blur", () => it.classList.remove("is-active"));
   });
 
+  // スクロール後は、カーソルの下にあるカードを大きくし直す
+  let mouse = null;
+  addEventListener("mousemove", (e) => { mouse = [e.clientX, e.clientY]; });
+  list.addEventListener("scroll", () => {
+    recenter();
+    if (!isPC() || !mouse || isOpen()) return;
+    const hit = document.elementFromPoint(...mouse)?.closest(".card")?.parentElement;
+    setActive(hit && list.contains(hit) ? hit : null);
+  });
+
   // PCだけ、3秒ごとにカード1枚分、右から左へ流す
-  // カーソルがカードに乗っている間と、ホイールで動かした直後は止める
+  // カーソルがカードに乗っている間、ホイールで動かした直後、作品ページを開いている間は止める
   const AUTO_MS = 3000;
   let lastUser = 0;
   list.addEventListener("wheel", () => { lastUser = Date.now(); }, { passive: true });
   setInterval(() => {
-    if (!isPC() || !n || document.hidden) return;
+    if (!isPC() || !n || document.hidden || isOpen()) return;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (list.querySelector(".is-active")) return;
     if (Date.now() - lastUser < AUTO_MS) return;
@@ -95,11 +95,79 @@
     list.scrollBy({ left: step, behavior: "smooth" });
   }, AUTO_MS);
 
-  // スマホでは常に情報を出す
+  /* ---------- 作品ページ ---------- */
+
+  const detail = document.getElementById("detail");
+  const detailImg = document.getElementById("detail-img");
+  const detailInfo = document.getElementById("detail-info");
+  const closeBtn = document.getElementById("detail-close");
+  const isOpen = () => !detail.hidden;
+  let returnFocus = null;
+
+  const indexFromHash = () => {
+    const m = location.hash.match(/^#work-(\d+)$/);
+    const i = m ? Number(m[1]) - 1 : -1;
+    return i >= 0 && i < n ? i : -1;
+  };
+
+  const render = () => {
+    const i = indexFromHash();
+    if (i < 0) {
+      if (!isOpen()) return;
+      detail.hidden = true;
+      document.body.classList.remove("is-detail-open");
+      detailImg.removeAttribute("src");
+      returnFocus?.focus({ preventScroll: true });
+      returnFocus = null;
+      return;
+    }
+    const w = works[i];
+    detailImg.src = w.image ? `images/large/${w.image}` : "";
+    detailImg.alt = w.title;
+    detailImg.hidden = !w.image;
+    const rows = [
+      `<p id="detail-title">${esc(w.title)}</p>`,
+      w.size && `<p>${esc(w.size)}</p>`,
+      w.medium && `<p>${esc(w.medium)}</p>`,
+      w.text && `<p></p><p class="text">${esc(w.text)}</p>`,
+    ];
+    detailInfo.innerHTML = rows.filter(Boolean).join("");
+    setActive(null);
+    detail.hidden = false;
+    detail.scrollTop = 0;
+    document.body.classList.add("is-detail-open");
+    closeBtn.focus({ preventScroll: true });
+  };
+
+  list.addEventListener("click", (e) => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+    e.preventDefault();
+    returnFocus = card;
+    history.pushState({ detail: true }, "", "#" + workId(Number(card.dataset.index)));
+    render();
+  });
+
+  const close = () => {
+    if (history.state?.detail) history.back(); // 一覧から開いたときは、ブラウザの「戻る」と同じ動き
+    else {
+      history.replaceState(null, "", location.pathname + location.search);
+      render();
+    }
+  };
+
+  closeBtn.addEventListener("click", close);
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen()) close(); });
+  addEventListener("popstate", render);
+  addEventListener("hashchange", render);
+
+  /* ---------- 起動 ---------- */
+
   const applyMode = () => {
     if (!isPC()) setActive(null);
     start();
   };
   matchMedia("(min-width: 768px)").addEventListener("change", applyMode);
   applyMode();
+  render(); // URLに #work-05 などが付いていれば、その作品ページを開く
 })();
