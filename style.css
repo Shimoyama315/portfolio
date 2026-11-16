@@ -112,11 +112,43 @@ body {
 .detail[hidden] { display: none; }
 .detail-info .text { white-space: pre-wrap; }
 
-.detail-img {
-  display: block;
+/* 画像の枠。左半分を押すと前、右半分を押すと次 */
+.detail-media { position: relative; }
+
+.slide {
+  position: relative;
   width: 100%;
+}
+.slide-body { position: absolute; inset: 0; }
+.slide img,
+.slide iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
   object-fit: contain;
 }
+
+.tap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.tap.prev { left: 0; cursor: w-resize; }
+.tap.next { right: 0; cursor: e-resize; }
+.tap:focus { outline: none; }
+.tap:focus-visible { outline: 1px solid var(--fg); outline-offset: -1px; }
+.tap[hidden] { display: none; }
+/* 動画・3Dのときは、真ん中を操作できるよう端だけにする */
+.detail-media.is-embed .tap { width: 12%; }
+
+.count { margin-top: 8px; }
+.count[hidden] { display: none; }
 
 .detail-close {
   position: fixed;
@@ -147,13 +179,18 @@ body.is-detail-open { overflow: hidden; }
     align-items: start;
   }
 
-  .detail-img {
+  .slide {
     aspect-ratio: 1101 / 778;
     max-height: calc(100vh - 160px);
   }
 
-  /* 情報の書き出しは画像の上端より 57px 下 */
-  .detail-info { padding-top: 57px; }
+  /* 情報の書き出しは画像の上端より 57px 下。長い説明文はこの欄の中でスクロール */
+  .detail-info {
+    padding-top: 57px;
+    max-height: min(778px, calc(100vh - 160px));
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 }
 
 /* ---------- スマホ：縦一列 ---------- */
@@ -183,7 +220,7 @@ body.is-detail-open { overflow: hidden; }
   /* Figma 12:28：上に画像 360×254、24px あけて 8px の情報 */
   .detail { overflow-y: auto; }
   .detail-inner { padding: 38px 17px 60px; }
-  .detail-img { aspect-ratio: 360 / 254; }
+  .slide { aspect-ratio: 360 / 254; }
   .detail-info { margin-top: 24px; font-size: 8px; }
   .detail-close { right: 13px; bottom: 11px; }
 }

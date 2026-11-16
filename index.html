@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <main>
@@ -18,13 +18,20 @@
   <!-- 作品ページ（Figma 12:19 / 12:28） -->
   <div class="detail" id="detail" role="dialog" aria-modal="true" aria-labelledby="detail-title" hidden>
     <div class="detail-inner">
-      <img class="detail-img" id="detail-img" alt="">
+      <div class="detail-media" id="detail-media">
+        <div class="slide">
+          <div class="slide-body" id="detail-slide"></div>
+          <button class="tap prev" id="detail-prev" type="button" aria-label="前の画像"></button>
+          <button class="tap next" id="detail-next" type="button" aria-label="次の画像"></button>
+        </div>
+        <p class="count" id="detail-count"></p>
+      </div>
       <div class="detail-info" id="detail-info"></div>
     </div>
     <button class="detail-close" id="detail-close" type="button">CLOSE</button>
   </div>
 
-  <script src="works.js?v=4"></script>
-  <script src="main.js?v=4"></script>
+  <script src="works.js?v=5"></script>
+  <script src="main.js?v=5"></script>
 </body>
 </html>

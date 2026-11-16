@@ -98,11 +98,60 @@
   /* ---------- 作品ページ ---------- */
 
   const detail = document.getElementById("detail");
-  const detailImg = document.getElementById("detail-img");
+  const media = document.getElementById("detail-media");
+  const slideBody = document.getElementById("detail-slide");
+  const prevBtn = document.getElementById("detail-prev");
+  const nextBtn = document.getElementById("detail-next");
+  const countEl = document.getElementById("detail-count");
   const detailInfo = document.getElementById("detail-info");
   const closeBtn = document.getElementById("detail-close");
   const isOpen = () => !detail.hidden;
   let returnFocus = null;
+  let current = -1; // 開いている作品
+  let slideAt = 0;  // 何枚目か
+
+  const slidesOf = (w) => (w.slides && w.slides.length ? w.slides : w.image ? [{ image: w.image, thumb: true }] : []);
+  const srcOf = (s) => (s.thumb ? `images/${s.image}` : `images/large/${s.image}`);
+
+  const showSlide = (k) => {
+    const w = works[current];
+    const slides = slidesOf(w);
+    if (!slides.length) { slideBody.innerHTML = ""; countEl.hidden = true; prevBtn.hidden = nextBtn.hidden = true; return; }
+    slideAt = (k + slides.length) % slides.length; // 最後の次は最初に戻る
+    const s = slides[slideAt];
+    slideBody.innerHTML = s.embed
+      ? `<iframe src="${esc(s.embed)}" title="${esc(w.title)}" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe>`
+      : `<img src="${esc(srcOf(s))}" alt="${esc(w.title)}（${slideAt + 1}/${slides.length}）">`;
+    media.classList.toggle("is-embed", !!s.embed);
+    const many = slides.length > 1;
+    prevBtn.hidden = nextBtn.hidden = !many;
+    countEl.hidden = !many;
+    countEl.textContent = `${slideAt + 1} / ${slides.length}`;
+    // 次の画像を先に読み込んでおく
+    const nx = slides[(slideAt + 1) % slides.length];
+    if (many && nx.image) new Image().src = srcOf(nx);
+  };
+
+  prevBtn.addEventListener("click", () => showSlide(slideAt - 1));
+  nextBtn.addEventListener("click", () => showSlide(slideAt + 1));
+  addEventListener("keydown", (e) => {
+    if (!isOpen()) return;
+    if (e.key === "ArrowLeft") showSlide(slideAt - 1);
+    if (e.key === "ArrowRight") showSlide(slideAt + 1);
+  });
+
+  // スマホは左右スワイプでも切り替え
+  let touchX = null;
+  media.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  media.addEventListener("touchend", (e) => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) > 40) {
+      e.preventDefault(); // スワイプのあとにタップ扱いで二重に進まないように
+      showSlide(slideAt + (dx < 0 ? 1 : -1));
+    }
+  });
 
   const indexFromHash = () => {
     const m = location.hash.match(/^#work-(\d+)$/);
@@ -116,15 +165,14 @@
       if (!isOpen()) return;
       detail.hidden = true;
       document.body.classList.remove("is-detail-open");
-      detailImg.removeAttribute("src");
+      slideBody.innerHTML = ""; // 動画を止める
+      current = -1;
       returnFocus?.focus({ preventScroll: true });
       returnFocus = null;
       return;
     }
     const w = works[i];
-    detailImg.src = w.image ? `images/large/${w.image}` : "";
-    detailImg.alt = w.title;
-    detailImg.hidden = !w.image;
+    if (i !== current) { current = i; showSlide(0); }
     const rows = [
       `<p id="detail-title">${esc(w.title)}</p>`,
       w.size && `<p>${esc(w.size)}</p>`,
@@ -135,6 +183,7 @@
     setActive(null);
     detail.hidden = false;
     detail.scrollTop = 0;
+    detailInfo.scrollTop = 0;
     document.body.classList.add("is-detail-open");
     closeBtn.focus({ preventScroll: true });
   };
